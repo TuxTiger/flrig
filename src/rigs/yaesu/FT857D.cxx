@@ -100,6 +100,11 @@ void RIG_FT857D::initialize() {
 
 RIG_FT897D::RIG_FT897D()
 {
+	name_ = FT897Dname_;
+	modes_ = FT897Dmodes_;
+	mode_vals = FT897D_mode_val;
+	mode_type = FT897D_mode_type;
+	num_modes = 9;
 }
 
 void RIG_FT897D::initialize()
