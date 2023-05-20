@@ -1041,10 +1041,11 @@ public :
 		XmlRpcValue bws;
 
 		wait();
-		guard_lock service_lock(&mutex_srvc_reqs, "xml rig_get_bws");
-		guard_lock serial_lock(&mutex_serial, "xml rig_get_bws");
 
 		try {
+			guard_lock service_lock(&mutex_srvc_reqs, "xml rig_get_bws");
+			guard_lock serial_lock(&mutex_serial, "xml rig_get_bws");
+
 			int mode = (selrig->inuse == onB) ? vfoB.imode : vfoA.imode;
 			std::vector<std::string>& bwt = selrig->bwtable(mode);
 			std::vector<std::string>& dsplo = selrig->lotable(mode);
@@ -1105,13 +1106,14 @@ public:
 		if (!xcvr_online || disable_xmlrpc->value()) return;
 
 		wait();
-		guard_lock service_lock(&mutex_srvc_reqs, "xml rig_get_bw");
-		guard_lock serial_lock(&mutex_serial, "xml rig_get_bw");
 
 		int BW = (selrig->inuse == onB) ? vfoB.iBW : vfoA.iBW;
 		int mode = (selrig->inuse == onB) ? vfoB.imode : vfoA.imode;
 
 		try {
+			guard_lock service_lock(&mutex_srvc_reqs, "xml rig_get_bw");
+			guard_lock serial_lock(&mutex_serial, "xml rig_get_bw");
+
 			if (selrig->has_int_bandwidth_control) {
 				char reply[10];
 				snprintf(reply, sizeof(reply), "%d", BW);
@@ -1120,16 +1122,17 @@ public:
 				xml_trace( 5, "bandwidth on ", ((selrig->inuse == onB) ? "B " : "A "), s1.c_str(), " | ", s2.c_str());
 				return;
 			}
-
-			std::vector<std::string>& bwt = selrig->bwtable(mode);
-			std::vector<std::string>& dsplo = selrig->lotable(mode);
-			std::vector<std::string>& dsphi = selrig->hitable(mode);
+			if (!selrig->has_bandwidth_control)
+				return;
 
 			result[0] = result[1] = "";
 			if (BW < 256) {
+				std::vector<std::string>& bwt = selrig->bwtable(mode);
 				result[0] = bwt[BW & 0x7F];
 			}
 			else {
+				std::vector<std::string>& dsplo = selrig->lotable(mode);
+				std::vector<std::string>& dsphi = selrig->hitable(mode);
 				result[0] = dsplo.at(BW & 0x7F);
 				result[1] = dsphi.at((BW >> 8) & 0x7F);
 			}
@@ -1161,13 +1164,14 @@ public:
 		if (!xcvr_online || disable_xmlrpc->value()) return;
 
 		wait();
-		guard_lock service_lock(&mutex_srvc_reqs, "xml rig_get_bwA");
-		guard_lock serial_lock(&mutex_serial, "xml rig_get_bwA");
 
 		int BW = vfoA.iBW;
 		int mode = vfoA.imode;
 
 		try {
+			guard_lock service_lock(&mutex_srvc_reqs, "xml rig_get_bwA");
+			guard_lock serial_lock(&mutex_serial, "xml rig_get_bwA");
+
 			if (selrig->has_int_bandwidth_control) {
 				char reply[10];
 				snprintf(reply, sizeof(reply), "%d", BW);
@@ -1177,15 +1181,17 @@ public:
 				return;
 			}
 
-			std::vector<std::string>& bwt = selrig->bwtable(mode);
-			std::vector<std::string>& dsplo = selrig->lotable(mode);
-			std::vector<std::string>& dsphi = selrig->hitable(mode);
+			if (!selrig->has_bandwidth_control)
+				return;
 
 			result[0] = result[1] = "";
 			if (BW < 256) {
+				std::vector<std::string>& bwt = selrig->bwtable(mode);
 				result[0] = bwt.at(BW & 0x7F);
 			}
 			else {
+				std::vector<std::string>& dsplo = selrig->lotable(mode);
+				std::vector<std::string>& dsphi = selrig->hitable(mode);
 				result[0] = dsplo.at(BW & 0x7F);
 				result[1] = dsphi.at((BW >> 8) & 0x7F);
 			}
@@ -1218,15 +1224,15 @@ public:
 		if (!xcvr_online || disable_xmlrpc->value()) return;
 
 		wait();
-		guard_lock service_lock(&mutex_srvc_reqs, "xml rig_get_bwB");
-		guard_lock serial_lock(&mutex_serial, "xml rig_get_bwB");
 
 		int BW = vfoB.iBW;
 		int mode = vfoB.imode;
 		result[0] = result[1] = "";
 
 		try {
-			
+			guard_lock service_lock(&mutex_srvc_reqs, "xml rig_get_bwB");
+			guard_lock serial_lock(&mutex_serial, "xml rig_get_bwB");
+
 			if (selrig->has_int_bandwidth_control) {
 					char reply[10];
 					snprintf(reply, sizeof(reply), "%d", BW);
@@ -1235,15 +1241,16 @@ public:
 					xml_trace( 4, "bandwidth on B", s1.c_str(), " | ", s2.c_str());
 					return;
 				}
-
-			std::vector<std::string>& bwt = selrig->bwtable(mode);
-			std::vector<std::string>& dsplo = selrig->lotable(mode);
-			std::vector<std::string>& dsphi = selrig->hitable(mode);
+			if (!selrig->has_bandwidth_control)
+				return;
 
 			if (BW < 256) {
+				std::vector<std::string>& bwt = selrig->bwtable(mode);
 				result[0] = bwt.at(BW & 0x7F);
 			}
 			else {
+				std::vector<std::string>& dsplo = selrig->lotable(mode);
+				std::vector<std::string>& dsphi = selrig->hitable(mode);
 				result[0] = dsplo.at(BW & 0x7F);
 				result[1] = dsphi.at((BW >> 8) & 0x7F);
 			}
