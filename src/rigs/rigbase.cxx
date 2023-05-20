@@ -58,11 +58,6 @@ rigbase::rigbase()
 	IDstr = "";
 	name_ = szNORIG;
 
-	VECTOR(vNOMODES, NOMODES);
-	VECTOR(vNOBWS, NOBWS);
-	VECTOR(vDSPLO, DSPLO);
-	VECTOR(vDSPHI, DSPHI);
-
 	modes_ = vNOMODES;
 	bandwidths_ = vNOBWS;
 	dsp_SL = vDSPLO;
@@ -204,6 +199,14 @@ rigbase::rigbase()
 
 	atten_level = 0;
 	preamp_level = 0;
+}
+
+void rigbase::initialize()
+{
+	VECTOR( vNOMODES, NOMODES );
+	VECTOR( vNOBWS, NOBWS );
+	VECTOR( vDSPLO, DSPLO );
+	VECTOR( vDSPHI, DSPHI );
 }
 
 std::string rigbase::to_bcd_be(unsigned long long val, int len)

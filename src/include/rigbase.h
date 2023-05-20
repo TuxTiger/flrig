@@ -361,7 +361,7 @@ public:
 	rigbase();
 	virtual ~rigbase(){}
 
-	virtual void initialize() {}
+	virtual void initialize();
 	virtual void post_initialize() {}
 	virtual void shutdown() {}
 
