@@ -76,6 +76,7 @@ RIG_QDX::RIG_QDX() {
 	B.freq = 14070000ULL;
 
 	has_mode_control =
+	has_bandwidth_control =
 	has_extras =
 	has_volume_control =
 	has_ptt_control =

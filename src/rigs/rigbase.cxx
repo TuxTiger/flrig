@@ -36,11 +36,11 @@ const char *szNORIG = "NONE";
 std::vector<std::string> vNOMODES;
 const char *NOMODES[] = {"LSB", "USB"};
 std::vector<std::string> vNOBWS;
-const char *NOBWS[] = {"NONE"};
+const char *NOBWS[] = {"3200"};
 std::vector<std::string> vDSPLO;
-const char *DSPLO[] = {"NONE"};
+const char *DSPLO[] = {"200"};
 std::vector<std::string> vDSPHI;
-const char *DSPHI[] = {"NONE"};
+const char *DSPHI[] = {"3400"};
 
 const char *szdsptooltip = "dsp tooltip";
 const char *szbtnlabel = " ";
@@ -206,6 +206,11 @@ void rigbase::initialize()
 	VECTOR( vNOBWS, NOBWS );
 	VECTOR( vDSPLO, DSPLO );
 	VECTOR( vDSPHI, DSPHI );
+
+	modes_ 		= vNOMODES;
+	bandwidths_	= vNOBWS;
+	dsp_SL		= vDSPLO;
+	dsp_SH		= vDSPHI;
 }
 
 std::string rigbase::to_bcd_be(unsigned long long val, int len)
