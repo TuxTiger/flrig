@@ -427,12 +427,16 @@ RIG_TS990::RIG_TS990() {
 	has_auto_notch =
 	has_notch_control =
 	has_sql_control =
-	has_swr_control =
 	has_noise_reduction =
 	has_noise_reduction_control =
-	has_alc_control =
 	has_dsp_controls =
+
 	has_smeter =
+	has_voltmeter =
+	has_idd_control =
+	has_alc_control =
+	has_swr_control =
+
 	has_power_out =
 	has_split =
 	has_split_AB =
@@ -871,10 +875,6 @@ int RIG_TS990::get_power_out()
 {
 	gett("get_power_out()");
 
-	static int meter[] = 
-	{  0,  7, 15, 23, 29,  34,  40,  46,  51,  58 };
-	static float val[] =
-	{  0, 10, 25, 50, 75, 100, 125, 150, 175, 200 };
 	if (inuse == onB) cmd = "SM1;";
 	else      cmd = "SM0;";
 
@@ -884,11 +884,12 @@ int RIG_TS990::get_power_out()
 
 	char b;
 	sscanf(replystr.c_str(), "SM%c%d", &b, &mtr);
-	int i = 0;
-	while (i < 9 && (mtr > meter[i])) i++;
-	float value = val[i] + (val[i+1] - val[i]) * (mtr - meter[i]) / (meter[i+1] - meter[i]);
 
-	return (int)value;
+	mtr *= 25;
+	mtr /= 7;
+	if (mtr > 200) mtr = 200;
+
+	return mtr;
 }
 
 //==============================================================================
@@ -909,7 +910,7 @@ int RIG_TS990::get_swr(void)
 	sendCommand(cmd);
 	if (wait_char(';', 8, TS990_WAIT, "get swr", ASC) < 8) return 0;
 
-	sscanf(replystr.c_str(), "RM21%d", &mtr);
+	sscanf(replystr.c_str(), "RM2%d", &mtr);
 	mtr *= 10;
 	mtr /= 7;
 	if (mtr > 100) mtr = 100;
@@ -937,12 +938,60 @@ int RIG_TS990::get_alc(void)
 	if (p == std::string::npos) return 0;
 
 	int alc_val = 0;
-	sscanf(replystr.c_str(), "RM11%d", &alc_val);
+	sscanf(replystr.c_str(), "RM1%d", &alc_val);
 	alc_val *= 10;
 	alc_val /= 7;
 	if (alc_val > 100) alc_val = 100;
 
 	return alc_val;
+}
+
+double RIG_TS990::get_idd()
+{
+	gett("get_idd(void)");
+
+	cmd = "RM41;";
+	sendCommand(cmd);
+	showresp(INFO, ASC, "set Idd meter", cmd, "");
+
+	cmd = "RM;";
+	sendCommand(cmd);
+	if (wait_char(';', 8, TS990_WAIT, "get Idd", ASC) < 8) return 0;
+
+	size_t p = replystr.find("RM4");
+	if (p == std::string::npos) return 0;
+
+	int idd_val = 0;
+	sscanf(replystr.c_str(), "RM4%d", &idd_val);
+	idd_val *= 10;
+	idd_val /= 7;
+	if (idd_val > 100) idd_val = 100;
+
+	return idd_val;
+}
+
+double RIG_TS990::get_voltmeter(void)
+{
+	gett("get_voltmeter(void)");
+
+	cmd = "RM51;";
+	sendCommand(cmd);
+	showresp(INFO, ASC, "set Vdd meter", cmd, "");
+
+	cmd = "RM;";
+	sendCommand(cmd);
+	if (wait_char(';', 8, TS990_WAIT, "get Vdd", ASC) < 8) return 0;
+
+	size_t p = replystr.find("RM5");
+	if (p == std::string::npos) return 0;
+
+	int vdd_val = 0;
+	sscanf(replystr.c_str(), "RM5%d", &vdd_val);
+	vdd_val *= 10;
+	vdd_val /= 7;
+	if (vdd_val > 100) vdd_val = 100;
+
+	return vdd_val;
 }
 
 //==============================================================================
