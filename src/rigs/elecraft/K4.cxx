@@ -35,23 +35,13 @@ static const char K4_mode_type[] =
 	{ 'L', 'U', 'L', 'U', 'U', 'U', 'U', 'L' };
 
 static std::vector<std::string>K4_widths;
-static const char *vK4_widths[] = {
-   "50",  "100",  "150",  "200",  "250",  "300",  "350",  "400",  "450",  "500",
-  "550",  "600",  "650",  "700",  "750",  "800",  "850",  "900",  "950", "1000",
- "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "2000",
- "2200", "2400", "2600", "2800", "3000", "3100", "3200", "3300", "3400", "3500",
- "3600", "3700", "3800", "3900", "4000"};
-static int K4_bw_vals[] = {
- 1, 2, 3, 4, 5, 6, 7, 8, 9,10,
-11,12,13,14,15,16,17,18,19,20,
-21,22,23,24,25,26,27,28,29,30,
-31,32,33,34,35,36,37,38, 39,40,
-41,42,43,44,45, WVALS_LIMIT};
 
 static int mode_bwA[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 static int mode_bwB[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-static int mode_def_bw[] =  { 2800, 2800, 800, 3600, 3600, 2800, 800, 2800 };
 
+// entry # = (FREQ - 50)/10; FREQ: 50...5000, #: 0...495
+static int mode_def_bw[] = { 275, 275, 75, 495, 395, 275, 75, 275 };
+ 
 static GUI k4_widgets[]= {
 	{ (Fl_Widget *)btnVol, 2, 125,  50 },
 	{ (Fl_Widget *)sldrVOLUME, 54, 125, 156 },
@@ -78,7 +68,6 @@ RIG_K4::RIG_K4() {
 	name_ = K4name_;
 	modes_ = K4modes_;
 	bandwidths_ = K4_widths;
-	bw_vals_ = K4_bw_vals;
 
 	serial_baudrate = BR38400;
 
@@ -107,8 +96,7 @@ RIG_K4::RIG_K4() {
 	has_split_AB = true;
 	has_micgain_control =
 	has_rf_control = true;
-//	has_bandwidth_control =
-	has_int_bandwidth_control =
+	has_bandwidth_control =
 	has_power_control = true;
 	has_volume_control =
 	has_mode_control =
@@ -139,14 +127,22 @@ RIG_K4::RIG_K4() {
 
 int  RIG_K4::adjust_bandwidth(int m)
 {
-	int width = (inuse == onA ? mode_bwA[m] : mode_bwB[m]);
-	if (width == -1)
-		return mode_def_bw[m];
-	return width;
+	return def_bandwidth(m);
 }
 
 int  RIG_K4::def_bandwidth(int m)
 {
+/*
+std::cout << vK4modes_[0] << ":" << mode_bwA[0] << ":" << mode_bwB[0] << ", " <<
+			 vK4modes_[1] << ":" << mode_bwA[1] << ":" << mode_bwB[1] << ", " <<
+			 vK4modes_[2] << ":" << mode_bwA[2] << ":" << mode_bwB[2] << ", " <<
+			 vK4modes_[3] << ":" << mode_bwA[3] << ":" << mode_bwB[3] << ", " <<
+			 vK4modes_[4] << ":" << mode_bwA[4] << ":" << mode_bwB[4] << ", " <<
+			 vK4modes_[5] << ":" << mode_bwA[5] << ":" << mode_bwB[5] << ", " <<
+			 vK4modes_[6] << ":" << mode_bwA[6] << ":" << mode_bwB[6] << ", " <<
+			 vK4modes_[7] << ":" << mode_bwA[7] << ":" << mode_bwB[7] << std::endl;
+*/
+	if (m < 0 || m > 7) return 0;
 	int width = (inuse == onA ? mode_bwA[m] : mode_bwB[m]);
 	if (width == -1)
 		return mode_def_bw[m];
@@ -154,15 +150,21 @@ int  RIG_K4::def_bandwidth(int m)
 }
 
 #define K4_WAIT_TIME 800
+#define VECTOR(a,b) { a.clear(); for (size_t n = 0; n < sizeof(b)/sizeof(*b); n++) {a.push_back(b[n]);} }
 
 void RIG_K4::initialize()
 {
 	VECTOR (K4modes_, vK4modes_);
-	VECTOR (K4_widths, vK4_widths);
+
+	char width[10];
+	K4_widths.clear();
+	for (int n = 50; n <= 5000; n += 10) {
+		snprintf(width, sizeof(width), "%d", n);
+		K4_widths.push_back(width);
+	}
 
 	modes_ = K4modes_;
 	bandwidths_ = K4_widths;
-	bw_vals_ = K4_bw_vals;
 
 	LOG_INFO("K4");
 	k4_widgets[0].W = btnVol;
@@ -491,11 +493,11 @@ int RIG_K4::get_modeA()
 	gett("");
 
 	size_t p = replystr.rfind("MD");
-	if (replystr[p+2] == '0' || replystr[p+2] == '8') return modeA;
+//	if (replystr[p+2] == '0' || replystr[p+2] == '8') return modeA;
 	if (p == std::string::npos) return modeA;
 
 	int md = replystr[p + 2] - '1';
-	if (md == 8) md--;
+	if (md < 0 || md > 7) return modeA;
 	if (md != modeA) set_pbt_values(md);
 	return (modeA = md);
 }
@@ -520,11 +522,11 @@ int RIG_K4::get_modeB()
 	gett("");
 
 	size_t p = replystr.rfind("MD$");
-	if (replystr[p+3] == '0' || replystr[p+3] == '8') return modeB;
+//	if (replystr[p+3] == '0' || replystr[p+3] == '8') return modeB;
 	if (p == std::string::npos) return modeB;
 
 	int md = replystr[p + 3] - '1';
-	if (md == 8) md--;
+	if (md < 0 || md > 7) return modeA;
 	if (md != modeB) set_pbt_values(md);
 	return (modeB = md);
 }
@@ -534,13 +536,11 @@ int RIG_K4::get_modetype(int n)
 	return K4_mode_type[n];
 }
 
-/*
-PAn;
-n = 0 (off)
-n = 1 (10 dB regular preamp)
-n = 2 (160-15 m: 18 dB regular preamp; 12-6 m: 20 dB LNA)
-n = 3 (12-6 m only: 10 dB regular preamp + 20 dB LNA)
-*/
+// SET/RESP format: PA$nm; where n is as shown below, and m is 0 (off) or 1 (on).
+//   n = 0 (off)
+//   n = 1 (10 dB regular preamp)
+//   n = 2 (160-15 m: 18 dB regular preamp; 12-6 m: 20 dB LNA)
+//   n = 3 (12-6 m only: 10 dB regular preamp + 20 dB LNA)
 
 void RIG_K4::set_preamp(int val)
 {
@@ -551,6 +551,9 @@ void RIG_K4::set_preamp(int val)
 		case 0: cmd.append("00;"); break;
 		case 1: cmd.append("11;"); break;
 		case 2: cmd.append("21;"); break;
+#ifdef HAVE_LNA
+		case 3: cmd.append("31;"); break;
+#endif
 	}
 	preamp_level = val;
 	sendCommand(cmd);
@@ -587,14 +590,14 @@ int RIG_K4::get_preamp()
 	return val;
 }
 
-
+// THIS IS A DO NOTHING METHOD !!
 void K4_return(int val)
 {
 }
 
 int RIG_K4::next_attenuator()
 {
-		if (atten_level < 8) atten_level++;
+		if (atten_level < 7) atten_level++;
 		else atten_level = 0;
 
 	return atten_level;
@@ -602,7 +605,11 @@ int RIG_K4::next_attenuator()
 
 int RIG_K4::next_preamp()
 {
+#ifdef HAVE_LNA
+	if (preamp_level < 3) preamp_level++;
+#else
 	if (preamp_level < 2) preamp_level++;
+#endif
 	else preamp_level = 0;
 
 	return preamp_level;
@@ -613,8 +620,11 @@ const char *RIG_K4::PRE_label()
 	switch (preamp_level) {
 		default:
 		case 0: break;
-		case 1: return("Pre1"); break;
-		case 2: return("Pre2"); break;
+		case 1: return("10 db"); break;
+		case 2: return("18 db"); break;
+#ifdef HAVE_LNA
+		case 3: return("30 db"); break;
+#endif
 	}
 	return("PRE");
 }
@@ -632,7 +642,7 @@ const char *RIG_K4::ATT_label()
 		case 6: return("18 db"); break;
 		case 7: return("21 db"); break;
 	}
-	return("OFF");
+	return("ATT");
 }
 
 
@@ -646,6 +656,7 @@ void RIG_K4::set_attenuator(int val)
 	if (isOnA()) cmd = "RA";
 	else cmd = "RA$";
 	switch (val) {
+		default:
 		case 0: cmd.append("000;"); break;
 		case 1: cmd.append("031;");break;
 		case 2: cmd.append("061;"); break;
@@ -654,18 +665,15 @@ void RIG_K4::set_attenuator(int val)
 		case 5: cmd.append("151;"); break;
 		case 6: cmd.append("181;"); break;
 		case 7: cmd.append("211;"); break;
-		case 8: cmd.append("000;"); break;
 	}
 	set_trace(1, "set attenuator");
 	sendCommand(cmd);
 	sett("");
-	K4_return(val);
 }
 
 int RIG_K4::get_attenuator()
 {
-	int val;
-	
+	std::string valstr;
 	if (isOnA()) {
 		cmd = "RA;";
 		get_trace(1, "get attenuator");
@@ -674,7 +682,7 @@ int RIG_K4::get_attenuator()
 
 		size_t p = replystr.rfind("RA");
 		if (p == std::string::npos) return 0;
-		val = (replystr[p+2] - '0')*10 + replystr[p+3] - '0';
+		valstr = replystr.substr(p + 2, 2);
 	} else {
 		cmd = "RA$;";
 		get_trace(1, "get attenuator");
@@ -683,23 +691,18 @@ int RIG_K4::get_attenuator()
 
 		size_t p = replystr.rfind("RA$");
 		if (p == std::string::npos) return 0;
-		val = (replystr[p+3] - '0')*10 + replystr[p+3] - '0';
+		valstr = replystr.substr(p + 3, 2);
 	}
 
-	switch (val) {
-		default:
-		case 0: atten_level = 0; break;
-		case 3: atten_level = 1; break;
-		case 6: atten_level = 2; break;
-		case 9: atten_level = 3; break;
-		case 12: atten_level = 4; break;
-		case 15: atten_level = 5; break;
-		case 18: atten_level = 6; break;
-		case 21: atten_level = 7; break;
-	}
-	
-	K4_return(atten_level);
-	return atten_level;
+	if (valstr == "03") return 1;
+	if (valstr == "06") return 2;
+	if (valstr == "09") return 3;
+	if (valstr == "12") return 4;
+	if (valstr == "15") return 5;
+	if (valstr == "18") return 6;
+	if (valstr == "21") return 7;
+
+	return 0;
 }
 
 // Transceiver power level
@@ -942,8 +945,12 @@ int RIG_K4::get_noise()
 void RIG_K4::set_bwA(int val)
 {
 	char command[10];
-	short bw = val;
-	if (bw > 4000) bw = 4000;
+	short bw = 0;
+	try {
+		sscanf(K4_widths.at(val).c_str(), "%hd", &bw);
+	} catch (...) {
+		bw = 1800;
+	}
 	snprintf(command, sizeof(command), "BW%04d;", (bw/10));
 	cmd = command;
 
@@ -958,19 +965,29 @@ int RIG_K4::get_bwA()
 {
 	cmd = "BW;";
 	get_trace(1, "get bwA val");
-	wait_char(';', 7, KX3_WAIT_TIME, "get bwA val", ASC);
+	wait_char(';', 7, K4_WAIT_TIME, "get bwA val", ASC);
 	gett("");
-	int bw = bwA / 10;
+	int bw = 0;
 	sscanf(replystr.c_str(), "BW%d", &bw);
 	bw *= 10;
-	return bwA = bw;
+	int n = 0;
+	try {
+		while (atol(K4_widths.at(n).c_str()) < bw) n++;
+	} catch (...) {
+		n = 0;
+	}
+	return bwA = n;
 }
 
 void RIG_K4::set_bwB(int val)
 {
 	char command[10];
-	short bw = val;
-	if (bw > 4000) bw = 4000;
+	short bw = 0;
+	try {
+		sscanf(K4_widths.at(val).c_str(), "%hd", &bw);
+	} catch (...) {
+		bw = 1800;
+	}
 	snprintf(command, sizeof(command), "BW$%04d;", (bw/10));
 	cmd = command;
 
@@ -985,12 +1002,18 @@ int RIG_K4::get_bwB()
 {
 	cmd = "BW$;";
 	get_trace(1, "get bwB val");
-	wait_char(';', 7, KX3_WAIT_TIME, "get bwB val", ASC);
+	wait_char(';', 7, K4_WAIT_TIME, "get bwB val", ASC);
 	gett("");
-	int bw = bwB /10;
+	int bw = 0;
 	sscanf(replystr.c_str(), "BW$%d", &bw);
 	bw *= 10;
-	return bwB = bw;
+	int n = 0;
+	try {
+		while (atol(K4_widths.at(n).c_str()) < bw) n++;
+	} catch (...) {
+		n = 0;
+	}
+	return bwB = n;
 }
 
 int RIG_K4::get_power_out()

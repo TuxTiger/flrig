@@ -94,8 +94,7 @@ RIG_K3::RIG_K3() {
 	has_split_AB =
 	has_micgain_control =
 	has_rf_control =
-//	has_bandwidth_control =
-	has_int_bandwidth_control =
+	has_bandwidth_control =
 	has_power_control =
 	has_volume_control =
 	has_mode_control =
@@ -626,8 +625,12 @@ int RIG_K3::get_noise()
 void RIG_K3::set_bwA(int val)
 {
 	char command[10];
-	short bw = val;
-	if (bw > 4000) bw = 4000;
+	short bw = 0;
+	try {
+		sscanf(K3_widths.at(val).c_str(), "%hd", &bw);
+	} catch (...) {
+		bw = 1800;
+	}
 	snprintf(command, sizeof(command), "BW%04d;", (bw/10));
 	cmd = command;
 
@@ -642,19 +645,29 @@ int RIG_K3::get_bwA()
 {
 	cmd = "BW;";
 	get_trace(1, "get bwA val");
-	wait_char(';', 7, KX3_WAIT_TIME, "get bwA val", ASC);
+	wait_char(';', 7, K3_WAIT_TIME, "get bwA val", ASC);
 	gett("");
-	int bw = bwA / 10;
+	int bw = 0;  //atol(bwA);
 	sscanf(replystr.c_str(), "BW%d", &bw);
 	bw *= 10;
-	return bwA = bw;
+	int n = 0;
+	try {
+		while (atol(K3_widths.at(n).c_str()) < bw) n++;
+	} catch (...) {
+		n = 0;
+	}
+	return bwA = n;// bw;
 }
 
 void RIG_K3::set_bwB(int val)
 {
 	char command[10];
-	short bw = val;
-	if (bw > 4000) bw = 4000;
+	short bw = 0;
+	try {
+		sscanf(K3_widths.at(val).c_str(), "%hd", &bw);
+	} catch (...) {
+		bw = 1800;
+	}
 	snprintf(command, sizeof(command), "BW$%04d;", (bw/10));
 	cmd = command;
 
@@ -669,12 +682,18 @@ int RIG_K3::get_bwB()
 {
 	cmd = "BW$;";
 	get_trace(1, "get bwB val");
-	wait_char(';', 7, KX3_WAIT_TIME, "get bwB val", ASC);
+	wait_char(';', 7, K3_WAIT_TIME, "get bwB val", ASC);
 	gett("");
-	int bw = bwB /10;
+	int bw = 0;  //atol(bwA);
 	sscanf(replystr.c_str(), "BW$%d", &bw);
 	bw *= 10;
-	return bwB = bw;
+	int n = 0;
+	try {
+		while (atol(K3_widths.at(n).c_str()) < bw) n++;
+	} catch (...) {
+		n = 0;
+	}
+	return bwB = n;// bw;
 }
 
 int RIG_K3::get_power_out()

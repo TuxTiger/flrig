@@ -40,22 +40,42 @@ static const char KX3_mode_type[] =
 
 static std::vector<std::string>KX3_widths;
 static const char *vKX3_widths[] = {
-   "50",  "100",  "150",  "200",  "250",  "300",  "350",  "400",  "450",  "500",
-  "550",  "600",  "650",  "700",  "750",  "800",  "850",  "900",  "950", "1000",
- "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "2000",
- "2100", "2200", "2300", "2400", "2500", "2600", "2700", "2800", "2900", "3000",
- "3200", "3400", "3600", "3800", "4000"};
+   "50",    "60",   "70",   "80",   "90",
+   "100",  "110",  "120",  "130",  "140",  "150",  "160",  "170",  "180",  "190", 
+   "200",  "210",  "220",  "230",  "240",  "250",  "260",  "270",  "280",  "290", 
+   "300",  "310",  "220",  "330",  "340",  "350",  "360",  "370",  "380",  "390", 
+   "400",  "410",  "220",  "430",  "440",  "450",  "460",  "470",  "480",  "490", 
+   "500",  "510",  "220",  "530",  "540",  "550",  "560",  "570",  "580",  "590", 
+   "600",  "610",  "220",  "630",  "640",  "650",  "660",  "670",  "680",  "690", 
+   "700",  "710",  "220",  "730",  "740",  "750",  "760",  "770",  "780",  "790", 
+   "800",  "810",  "220",  "830",  "840",  "850",  "860",  "870",  "880",  "890", 
+   "900",  "910",  "220",  "930",  "940",  "950",  "960",  "970",  "980",  "990", 
+  "1000", "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", 
+  "2000", "2100", "2200", "2300", "2400", "2500", "2600", "2700", "2800", "2900",
+  "3000", "3100", "3200", "3300", "3400", "3500", "3600", "3700", "3800", "3900", 
+  "4000"};
 
-static int KX3_bw_vals[] = {
- 1, 2, 3, 4, 5, 6, 7, 8, 9,10,
-11,12,13,14,15,16,17,18,19,20,
-21,22,23,24,25,26,27,28,29,30,
-31,32,33,34,35,36,37,38,39,40, 
-41,42,43,44,45, WVALS_LIMIT};
+static int KX3_bw_vals[] = { 
+   1,   2,   3,   4,   5,								// 50
+   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,		// 100
+  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,		// 200
+  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,		// 300
+  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,		// 400
+  46,  47,  48,  49,  50,  51,  52,  53,  54,  55,		// 500
+  56,  57,  58,  59,  60,  61,  62,  63,  64,  65,		// 600
+  66,  67,  68,  69,  70,  71,  72,  73,  74,  75,		// 700
+  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,		// 800
+  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,		// 900
+  96,  97,  98,  99, 100, 101, 102, 103, 104, 105,		// 1000
+ 106, 107, 108, 109, 110, 111, 112, 113, 114, 115,		// 2000
+ 116, 117, 118, 119, 120, 121, 122, 123, 124, 125,		// 3000
+ 126, WVALS_LIMIT };									// 4000
 
 static int mode_bwA[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 static int mode_bwB[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-static int mode_def_bw[] =  { 2800, 2800, 800, 3600, 3600, 2800, 800, 2800 };
+
+//                         { 2800, 2800, 800, 3600, 3600, 2800, 800, 2800 };
+static int mode_def_bw[] = {  114,  114,  76,  122,  122,  114,  76,  114 }; 
 
 static int ret = 0;
 
@@ -100,8 +120,7 @@ RIG_KX3::RIG_KX3() {
 	has_split_AB =
 	has_micgain_control =
 	has_rf_control =
-//	has_bandwidth_control =
-	has_int_bandwidth_control =
+	has_bandwidth_control =
 	has_power_control =
 	has_volume_control =
 	has_mode_control =
@@ -918,8 +937,12 @@ int RIG_KX3::get_noise()
 void RIG_KX3::set_bwA(int val)
 {
 	char command[10];
-	short bw = val;
-	if (bw > 4000) bw = 4000;
+	short bw = 0;
+	try {
+		sscanf(KX3_widths.at(val).c_str(), "%hd", &bw);
+	} catch (...) {
+		bw = 1800;
+	}
 	snprintf(command, sizeof(command), "BW%04d;", (bw/10));
 	cmd = command;
 
@@ -934,19 +957,29 @@ int RIG_KX3::get_bwA()
 {
 	cmd = "BW;";
 	get_trace(1, "get bwA val");
-	ret = wait_char(';', 7, KX3_WAIT_TIME, "get bwA val", ASC);
+	wait_char(';', 7, KX3_WAIT_TIME, "get bwA val", ASC);
 	gett("");
-	if (ret < 7) return bwA;
-	int bw = bwA / 10;
-	if (sscanf(replystr.c_str(), "BW%d", &bw) != 1) return bwA;
-	return bwA = bw * 10;
+	int bw = 0;  //atol(bwA);
+	sscanf(replystr.c_str(), "BW%d", &bw);
+	bw *= 10;
+	int n = 0;
+	try {
+		while (atol(KX3_widths.at(n).c_str()) < bw) n++;
+	} catch (...) {
+		n = 0;
+	}
+	return bwA = n;// bw;
 }
 
 void RIG_KX3::set_bwB(int val)
 {
 	char command[10];
-	short bw = val;
-	if (bw > 4000) bw = 4000;
+	short bw = 0;
+	try {
+		sscanf(KX3_widths.at(val).c_str(), "%hd", &bw);
+	} catch (...) {
+		bw = 1800;
+	}
 	snprintf(command, sizeof(command), "BW$%04d;", (bw/10));
 	cmd = command;
 
@@ -961,12 +994,18 @@ int RIG_KX3::get_bwB()
 {
 	cmd = "BW$;";
 	get_trace(1, "get bwB val");
-	ret = wait_char(';', 7, KX3_WAIT_TIME, "get bwB val", ASC);
+	wait_char(';', 7, KX3_WAIT_TIME, "get bwB val", ASC);
 	gett("");
-	if (ret < 7) return bwB;
-	int bw = bwB /10;
-	if (sscanf(replystr.c_str(), "BW$%d", &bw) != 1) return bwB;
-	return bwB = bw * 10;
+	int bw = 0;  //atol(bwA);
+	sscanf(replystr.c_str(), "BW$%d", &bw);
+	bw *= 10;
+	int n = 0;
+	try {
+		while (atol(KX3_widths.at(n).c_str()) < bw) n++;
+	} catch (...) {
+		n = 0;
+	}
+	return bwB = n;// bw;
 }
 
 bool RIG_KX3::can_split()

@@ -1294,17 +1294,6 @@ static void cb_pbt(Fl_Counter *, void *)
 
 void TRACED(init_dsp_controls)
 
-	if (selrig->has_int_bandwidth_control) {
-		opBW->hide();
-		opDSP_lo->hide();
-		opDSP_hi->hide();
-		btnDSP->hide();
-		btnFILT->hide();
-		opBW_A->show();
-		opBW_B->show();
-		return;
-	}
-
 	if (selrig->has_dsp_controls) {
 		opDSP_lo->clear();
 		opDSP_hi->clear();
@@ -1318,7 +1307,7 @@ void TRACED(init_dsp_controls)
 				opDSP_hi->add(selrig->dsp_SH.at(i).c_str());
 			opDSP_hi->tooltip(selrig->SH_tooltip);
 		} catch (const std::exception& e) {
-			std::cout << e.what() << '\n';
+			LOG_ERROR("%s", e.what());
 		}
 		if (vfo->iBW > 256) {
 			opDSP_lo->index(vfo->iBW & 0xFF);
@@ -1338,7 +1327,7 @@ void TRACED(init_dsp_controls)
 			btnFILT->hide();
 			opBW->show();
 		}
-	} else if (selrig->has_FILTER) { // && (xcvr_name != rig_KX3.name_) ) {
+	} else if (selrig->has_FILTER) {
 		btnDSP->hide();
 		opDSP_lo->hide();
 		opDSP_hi->hide();
@@ -1346,7 +1335,7 @@ void TRACED(init_dsp_controls)
 		opBW->resize(opDSP_lo->x(), opDSP_lo->y(), opDSP_lo->w(), opDSP_lo->h());
 		opBW->redraw();
 		opBW->show();
-	} else { //if ( (xcvr_name != rig_KX3.name_) ){
+	} else {
 		btnDSP->hide();
 		opDSP_lo->hide();
 		opDSP_hi->hide();
@@ -2273,17 +2262,35 @@ Slider controls TX monitor level");
 	}
 }
 
-static void cb_bw_A(Fl_Counter *, void *)
+void cb_bw_A(Fl_ComboBox *, void *)
 {
-	selrig->set_bwA( opBW_A->value() );
+	int nubw = opBW_A->index();
+	guard_lock serial(&mutex_serial);
+	selrig->set_bwA( nubw );
+	vfoA.iBW = nubw;
+//	int timeout = 500; // msec
+//	while (timeout && (selrig->get_bwA() != nubw)) {
+//		MilliSleep(50);
+//		timeout -= 50;
+//		Fl::awake();
+//	}
 }
 
-static void cb_bw_B(Fl_Counter *, void *)
+void cb_bw_B(Fl_ComboBox *, void *)
 {
-	selrig->set_bwB( opBW_B->value() );
+	int nubw = opBW_B->index();
+	guard_lock serial(&mutex_serial);
+	selrig->set_bwB( nubw );
+	vfoB.iBW = nubw;
+//	int timeout = 500; // msec
+//	while (timeout && (selrig->get_bwB() != nubw)) {
+//		MilliSleep(50);
+//		timeout -= 50;
+//		Fl::awake();
+//	}
 }
 
-void TRACED(init_K3_KX3_special)
+void TRACED(init_elecraft_xcvrs)
 	if (!(xcvr_name == rig_K3.name_ || 
 		  xcvr_name == rig_KX3.name_ ||
 		  xcvr_name == rig_K4.name_ ) ) return;
@@ -2295,15 +2302,13 @@ void TRACED(init_K3_KX3_special)
 		btn_KX3_swapAB->hide();
 		btn_K3_swapAB->show();
 		btn_K3_A2B->show();
-	} else if (xcvr_name == rig_KX3.name_) {
-		btnB->hide();
-		btnA->hide();
-		btnAswapB->hide();
-		btn_K3_swapAB->hide();
-		btn_K3_A2B->hide();
-		btn_KX3_swapAB->show();
-		btn_KX3_A2B->show();
-	} else {
+		opBW_A->hide();
+		opBW_B->hide();
+		opBW->show();
+		return;
+	}
+
+	if (xcvr_name == rig_KX3.name_ || xcvr_name == rig_K4.name_) {
 		btn_K3_swapAB->hide();
 		btn_K3_A2B->hide();
 		btn_KX3_swapAB->hide();
@@ -2312,18 +2317,38 @@ void TRACED(init_K3_KX3_special)
 		btnB->show();
 		btnA->show();
 		btnAswapB->show();
-	}
+		opDSP_lo->hide();
+		opDSP_hi->hide();
+		btnDSP->hide();
+		btnFILT->hide();
+		opBW->hide();
 
-	if (progStatus.UIsize == small_ui) {
-		opBW_A->resize(212, 103, 104, 18);
-		opBW_A->redraw();
-		opBW_B->resize(318, 103, 104, 18);
-		opBW_B->redraw();
+		if (progStatus.UIsize == small_ui) {
+			opBW_A->resize(opBW->x(), opBW->y() + opBW->h(), opBW->w(), opBW->h());
+			opBW_A->redraw();
+			opBW_B->resize(opMODE->x(), opBW_A->y(), opBW_A->w(), opBW_A->h());
+			opBW_B->redraw();
+		}
+		try {
+			selrig->bandwidths_ = selrig->bwtable(vfo->imode);
+			for (size_t i = 0; i < selrig->bandwidths_.size(); i++) {
+				opBW_A->add(selrig->bandwidths_.at(i).c_str());
+				opBW_B->add(selrig->bandwidths_.at(i).c_str());
+			}
+			opBW_A->index(vfoA.iBW);
+			opBW_B->index(vfoB.iBW);
+		} catch (const std::exception& e) {
+			LOG_ERROR("%s", e.what());
+			opBW_A->index(0);
+			opBW_B->index(0);
+		}
+		opBW_A->callback((Fl_Callback*)cb_bw_A);
+		opBW_B->callback((Fl_Callback*)cb_bw_B);
+
+		opBW_A->redraw(); opBW_A->show();
+		opBW_B->redraw(); opBW_B->show();
+		return;
 	}
-	opBW_A->callback((Fl_Callback*)cb_bw_A);
-	opBW_A->show();
-	opBW_B->callback((Fl_Callback*)cb_bw_B);
-	opBW_B->show();
 }
 
 extern void read_menus();
@@ -2500,7 +2525,7 @@ Press 'Init' button."));
 		selrig->post_initialize();
 
 		init_TS990_special();
-		init_K3_KX3_special();
+		init_elecraft_xcvrs();
 
 		if (selrig->has_power_control) {
 			if (progStatus.use_rig_data)
@@ -2721,7 +2746,6 @@ void TRACED(initRigCombo)
 	int i = 0;
 	while (rigs[i] != NULL) {
 		selectRig->add(rigs[i]->name_.c_str(), (void*)rigs[i]);
-//std::cout << i+1 << " : " << rigs[i]->name_ << std::endl;
 		i++;
 	}
 

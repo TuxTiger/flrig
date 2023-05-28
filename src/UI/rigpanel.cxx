@@ -265,8 +265,8 @@ Fl_ComboBox *opBW = (Fl_ComboBox *)0;
 Fl_ComboBox *opDSP_lo = (Fl_ComboBox *)0;
 Fl_ComboBox *opCENTER = (Fl_ComboBox *)0;
 
-Fl_Counter *opBW_A = (Fl_Counter *)0;
-Fl_Counter *opBW_B = (Fl_Counter *)0;
+Fl_ComboBox *opBW_A = (Fl_ComboBox *)0; //(Fl_Counter *)0;
+Fl_ComboBox *opBW_B = (Fl_ComboBox *)0; //(Fl_Counter *)0;
 
 Fl_Counter *opFilterInner = (Fl_Counter *)0;
 Fl_Counter *opFilterOuter = (Fl_Counter *)0;

@@ -240,24 +240,15 @@ void TRACED(init_generic_rig)
 		opMODE->deactivate();
 	}
 
-	if (xcvr_name == rig_K3.name_ ||
-		xcvr_name == rig_KX3.name_ ||
+	if (xcvr_name == rig_KX3.name_ ||
 		xcvr_name == rig_K4.name_) {
 		opBW->hide();
 		opBW_A->show();
 		opBW_B->show();
 		if (progStatus.iBW_A < 1) progStatus.iBW_A = selrig->def_bandwidth(vfoA.imode);
 		if (progStatus.iBW_B < 1) progStatus.iBW_B = selrig->def_bandwidth(vfoB.imode);
-		if ( (selrig->name_ == rig_K3.name_ && progStatus.iBW_A < 41) ||
-			 (selrig->name_ == rig_KX3.name_ && progStatus.iBW_A < 46) ||
-			 (selrig->name_ == rig_K4.name_ && progStatus.iBW_A < 46) )
-			progStatus.iBW_A = atol(selrig->bandwidths_[progStatus.iBW_A - 1].c_str());
-		if ( (selrig->name_ == rig_K3.name_ && progStatus.iBW_B < 41) ||
-			 (selrig->name_ == rig_KX3.name_ && progStatus.iBW_B < 46) ||
-			 (selrig->name_ == rig_K4.name_ && progStatus.iBW_B < 46) )
-			progStatus.iBW_B = atol(selrig->bandwidths_[progStatus.iBW_B - 1].c_str());
-		opBW_A->value(selrig->bwA = vfoA.iBW = progStatus.iBW_A);
-		opBW_B->value(selrig->bwB = vfoB.iBW = progStatus.iBW_B);
+		opBW_A->index(selrig->bwA = vfoA.iBW = progStatus.iBW_A);
+		opBW_B->index(selrig->bwB = vfoB.iBW = progStatus.iBW_B);
 		opBW_A->redraw();
 		opBW_B->redraw();
 	}

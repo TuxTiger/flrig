@@ -159,9 +159,7 @@ std::string printXCVR_STATE(XCVR_STATE data)
 
 		str << data.freq;
 		str << ", " << selrig->modes_.at(data.imode);
-		if (selrig->has_int_bandwidth_control) {
-			str << ", " << data.iBW;
-		} else if (selrig->has_dsp_controls) {
+		if (selrig->has_dsp_controls) {
 			std::vector<std::string>& dsplo = selrig->lotable(data.imode);
 			std::vector<std::string>& dsphi = selrig->hitable(data.imode);
 			if (data.iBW > 256) {
@@ -215,11 +213,7 @@ Data Source: %s\n\
 				selrig->modes_.at(data.imode).c_str());
 		prstr.assign(str);
 		str[0] = 0;
-		if (selrig->has_int_bandwidth_control) {
-			snprintf(str, sizeof(str), "\
-  bandwidth ...... %d\n",
-				data.iBW);
-		} else if (selrig->has_FILTER) {
+		if (selrig->has_FILTER) {
 			snprintf(str, sizeof(str), "\
   filter ......... %s\n\
   bwt index ...... %2d, [%s] [%s]\n",
@@ -489,13 +483,7 @@ void read_mode()
 }
 
 void TRACED(setBWControl, void *)
-	if (selrig->has_int_bandwidth_control) {
-		opBW->hide();
-		opBW_A->show();
-		opBW_B->show();
-		return;
-	}
-	else if (selrig->has_dsp_controls) {
+	if (selrig->has_dsp_controls) {
 		if (vfo->iBW > 256) {
 			opBW->hide();
 			opDSP_hi->index((vfo->iBW >> 8) & 0x7F);
@@ -525,43 +513,42 @@ void TRACED(setBWControl, void *)
 		opDSP_lo->hide();
 		opDSP_hi->hide();
 		btnDSP->hide();
-		if (!(	selrig->name_ == rig_tci_sundx.name_ ||
-				selrig->name_ == rig_tci_sunpro.name_ ||
-				selrig->name_ == rig_FLEX1500.name_) ) {
+		opBW_A->hide();
+		opBW_B->hide();
+		
+//		if (!(	selrig->name_ == rig_tci_sundx.name_ ||
+//				selrig->name_ == rig_tci_sunpro.name_ ||
+//				selrig->name_ == rig_FLEX1500.name_) ) {
 			opBW->index(vfo->iBW);
 			opBW->show();
 			opBW->redraw();
-		}
+//		}
 	}
 }
 
 void set_Kx_bandwidths(void *)
 {
-	opBW->hide();
-	opBW_A->value(vfoA.bw_val);
-	opBW_B->value(vfoB.bw_val);
+//	std::cout << printXCVR_STATE(*vfo);
+
+	opBW_A->index(vfoA.iBW);
+	opBW_B->index(vfoB.iBW);
 	opBW_A->redraw();
 	opBW_B->redraw();
 }
 
 void TRACED(read_bandwidth)
-	if (xcvr_name == rig_K2.name_ ||
-		xcvr_name == rig_K3.name_ ||
-		xcvr_name == rig_KX3.name_ ||
-		xcvr_name == rig_K4.name_) {
-		int nu_BW;
-		nu_BW = selrig->get_bwA();
-		if (nu_BW != vfoA.iBW) {
-			vfoA.iBW = vfo->iBW = nu_BW;
-			Fl::awake(setBWControl);
-		}
-		nu_BW = selrig->get_bwB();
-		if (nu_BW != vfoB.iBW) {
-			vfoB.iBW = nu_BW;
-		}
-		vfoA.bw_val = selrig->get_bwA();
-		vfoB.bw_val = selrig->get_bwB();
+	if (xcvr_name == rig_K2.name_ || xcvr_name == rig_K3.name_ ) {
+		vfoA.iBW = vfo->iBW = selrig->get_bwA();//nu_BW;
+		Fl::awake(setBWControl);
+		vfoB.iBW = selrig->get_bwB();//nu_BW;
+		return;
+	}
+	if (xcvr_name == rig_KX3.name_ || xcvr_name == rig_K4.name_) {
+		vfoA.iBW = selrig->get_bwA();
+		vfoB.iBW = selrig->get_bwB();
+
 		Fl::awake(set_Kx_bandwidths);
+
 		return;
 	}
 
@@ -1430,10 +1417,6 @@ void serviceQUE()
 
 void find_bandwidth(XCVR_STATE &nuvals)
 {
-	if (selrig->has_int_bandwidth_control) {
-		nuvals.iBW  = (onA ? selrig->bwA : selrig->bwB);
-		return;
-	}
 	if (nuvals.iBW == 255) return;
 	if (!selrig->has_bandwidth_control) {
 		nuvals.iBW = 255;
@@ -1529,13 +1512,9 @@ void serviceA(XCVR_STATE nuvals)
 			vfoA = nuvals;
 			set_bandwidth_control();
 		} else {
-			std::string m1, m2;
-			m1 = selrig->modes_[nuvals.imode];
-			m2 = selrig->modes_[vfoA.imode];
 			selrig->set_modeA(vfoA.imode = nuvals.imode);
 			selrig->get_modeA();
 			set_bandwidth_control();
-			vfoA.iBW = selrig->get_bwA();
 		}
 	}
 	if (vfoA.iBW != nuvals.iBW) {
@@ -2104,12 +2083,12 @@ void set_bandwidth_control()
 {
 	if (!selrig->has_bandwidth_control) return;
 
-	if (selrig->name_ != rig_K3.name_) {
-		vfo->iBW = selrig->def_bandwidth(vfo->imode);
-		if (vfo->iBW < 256) {
-			vfo->iBW = selrig->def_bandwidth(vfo->imode);
-		}
-	}
+//	if (selrig->name_ != rig_K3.name_) {
+//		vfo->iBW = selrig->def_bandwidth(vfo->imode);
+//		if (vfo->iBW < 256) {
+//			vfo->iBW = selrig->def_bandwidth(vfo->imode);
+//		}
+//	}
 	if (selrig->inuse == onB) {
 		vfoB.iBW = vfo->iBW = selrig->get_bwB();
 	} else {
@@ -2120,9 +2099,10 @@ void set_bandwidth_control()
 }
 
 void TRACED ( updateBandwidthControl, void *d )
-	if (xcvr_name == rig_K3.name_ ||
-		xcvr_name == rig_KX3.name_ ||
-		xcvr_name == rig_K4.name_) {
+	if (//xcvr_name == rig_K3.name_ ||
+		xcvr_name == rig_KX3.name_
+		|| xcvr_name == rig_K4.name_
+		) {
 		return;
 	}
 	if (selrig->has_dsp_controls) {
@@ -2137,7 +2117,6 @@ void TRACED ( updateBandwidthControl, void *d )
 			} catch (const std::exception& e) {
 				LOG_ERROR("%s", e.what());
 			}
-			opBW->hide();
 			opBW->hide();
 			opDSP_lo->index(vfo->iBW & 0xFF);
 			opDSP_lo->hide();
@@ -2770,6 +2749,8 @@ void addFreq() {
 		int bw;
 		if (btnDSP->visible())
 			bw = ((opDSP_hi->index() << 8) | 0x8000) | (opDSP_lo->index() & 0xFF) ;
+		else if (opBW_B->visible())
+			bw = opBW_B->index();
 		else
 			bw = opBW->index();
 		for (int n = 0; n < numinlist; n++)
@@ -2788,6 +2769,8 @@ void addFreq() {
 		int bw;
 		if (btnDSP->visible())
 			bw = ((opDSP_hi->index() << 8) | 0x8000) | (opDSP_lo->index() & 0xFF) ;
+		else if (opBW_A->visible())
+			bw = opBW_A->index();
 		else
 			bw = opBW->index();
 		for (int n = 0; n < numinlist; n++)
@@ -2831,8 +2814,13 @@ void cbAttenuator()
 {
 	trace(1, "cbAttenuator()");
 
-	selrig->set_attenuator ( progStatus.attenuator = selrig->next_attenuator() );
+	{
+		guard_lock serial_lock(&mutex_serial);
+		selrig->set_attenuator ( progStatus.attenuator = selrig->next_attenuator() );
 
+		if (xcvr_name == rig_K4.name_)
+			selrig->get_attenuator();
+	}
 	btnAttenuator->value( progStatus.attenuator > 0 ? 1 : 0);
 	btnAttenuator->label( selrig->ATT_label() );
 	btnAttenuator->redraw_label();
@@ -2856,7 +2844,12 @@ void cbPreamp()
 		return;
 	}
 
-	selrig->set_preamp ( progStatus.preamp = selrig->next_preamp() );
+	{
+		guard_lock serial_lock(&mutex_serial);
+		selrig->set_preamp ( progStatus.preamp = selrig->next_preamp() );
+		if (xcvr_name == rig_K4.name_)
+			selrig->get_preamp();
+	}
 
 	btnPreamp->value( progStatus.preamp > 0 ? 1 : 0);
 	btnPreamp->label( selrig->PRE_label() );

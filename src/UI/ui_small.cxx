@@ -409,7 +409,7 @@ CTRL  click: FreqB -> FreqA\
 	btnCENTER->tooltip(_("Center/Wid"));
 	btnCENTER->hide();
 
-	opBW = new Fl_ComboBox(212, 84, 105, 18, _("Bandwidth"));
+	opBW = new Fl_ComboBox(212, 84, 105, 18, "");
 	opBW->tooltip(_("Select Transceiver Bandwidth"));
 	opBW->box(FL_NO_BOX);
 	opBW->color(FL_BACKGROUND2_COLOR);
@@ -423,6 +423,38 @@ CTRL  click: FreqB -> FreqA\
 	opBW->when(FL_WHEN_RELEASE);
 	opBW->readonly();
 	opBW->end();
+
+	opBW_A = new Fl_ComboBox(212, 84, 86, 18, "");
+	opBW_A->tooltip("BW vfoA");
+	opBW_A->box(FL_NO_BOX);
+	opBW_A->color(FL_BACKGROUND2_COLOR);
+	opBW_A->selection_color(FL_BACKGROUND_COLOR);
+	opBW_A->labeltype(FL_NORMAL_LABEL);
+	opBW_A->labelfont(0);
+	opBW_A->labelsize(12);
+	opBW_A->labelcolor(FL_FOREGROUND_COLOR);
+	opBW_A->callback((Fl_Callback*)cb_opBW);
+	opBW_A->align(Fl_Align(FL_ALIGN_CENTER|FL_ALIGN_INSIDE));
+	opBW_A->when(FL_WHEN_RELEASE);
+	opBW_A->readonly();
+	opBW_A->hide();
+	opBW_A->end();
+
+	opBW_B = new Fl_ComboBox(212, 84, 86, 18, "");
+	opBW_B->tooltip("BW vfoB");
+	opBW_B->box(FL_NO_BOX);
+	opBW_B->color(FL_BACKGROUND2_COLOR);
+	opBW_B->selection_color(FL_BACKGROUND_COLOR);
+	opBW_B->labeltype(FL_NORMAL_LABEL);
+	opBW_B->labelfont(0);
+	opBW_B->labelsize(12);
+	opBW_B->labelcolor(FL_FOREGROUND_COLOR);
+	opBW_B->callback((Fl_Callback*)cb_opBW);
+	opBW_B->align(Fl_Align(FL_ALIGN_CENTER|FL_ALIGN_INSIDE));
+	opBW_B->when(FL_WHEN_RELEASE);
+	opBW_B->readonly();
+	opBW_B->hide();
+	opBW_B->end();
 
 	opCENTER = new Fl_ComboBox(231, 84, 86, 18, "");
 	opCENTER->tooltip(_("Center Frequency"));
@@ -498,24 +530,6 @@ CTRL  click: FreqB -> FreqA\
 	opFilterOuter->align(Fl_Align(FL_ALIGN_INSIDE));
 	opFilterOuter->tooltip("Outer cutoff");
 	opFilterOuter->hide();
-
-	opBW_A = new Fl_Counter(231, 84, 86, 18, "");
-	opBW_A->minimum(50);
-	opBW_A->maximum(4000);
-	opBW_A->step(10);
-	opBW_A->lstep(100);
-	opBW_A->align(Fl_Align(FL_ALIGN_INSIDE));
-	opBW_A->tooltip("BW vfoA");
-	opBW_A->hide();
-
-	opBW_B = new Fl_Counter(231, 84, 86, 18, "");
-	opBW_B->minimum(50);
-	opBW_B->maximum(4000);
-	opBW_B->step(10);
-	opBW_B->lstep(100);
-	opBW_B->align(Fl_Align(FL_ALIGN_INSIDE));
-	opBW_B->tooltip("BW vfoB");
-	opBW_B->hide();
 
 	opMODE = new Fl_ComboBox(318, 84, 105, 18, _("Mode"));
 	opMODE->tooltip(_("Select transceiver operating mode"));

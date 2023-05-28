@@ -114,8 +114,8 @@ extern Fl_Group *grp_row1a;
 
 extern Fl_ComboBox *opCENTER;
 extern Fl_ComboBox *opBW;
-extern Fl_Counter *opBW_A;
-extern Fl_Counter *opBW_B;
+extern Fl_ComboBox *opBW_A;
+extern Fl_ComboBox *opBW_B;
 
 extern Fl_Button *btnDSP;
 extern Fl_ComboBox *opDSP_lo;
