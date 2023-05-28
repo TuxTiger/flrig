@@ -50,7 +50,7 @@ static const char *vTS870S_empty[] = { "N/A" };
 // FM: 500, 600, 800, 1000, 1200, 1400 (bandwidth)
 // AM: 0, 10, 20, 50 (high pass freq)
 
-// Sets or reads IF shift. 
+// Sets or reads IF shift.
 // For SSB and AM, sets or reads the low-pass filter cut-off frequency.
 //
 // IS(p1)(p2)(p2)(p2)(p2);
@@ -267,7 +267,6 @@ RIG_TS870S::RIG_TS870S() {
 
 	has_micgain_control =
 	has_notch_control =
-	has_ifshift_control =
 	has_swr_control = false;
 
 	has_mode_control =
@@ -278,10 +277,10 @@ RIG_TS870S::RIG_TS870S() {
 	has_split =
 	has_split_AB =
 	has_rf_control =
-	has_ifshift_control =
 	has_noise_control =
 	has_micgain_control =
 	has_volume_control =
+	has_ifshift_control =
 	has_ptt_control =
 	has_attenuator_control =
 	has_sql_control =		// wbx3
@@ -306,24 +305,28 @@ const char * RIG_TS870S::get_bwname_(int n, int md)
   // (boolean test) ? (do if true) : (do if false);
   // http://www.teach-me-c.com/blog/c-ternary-operator
 
-	static char bwname[20];
+	try {
+		static char bwname[20];
+		if (n > 256) { // hi/lo cutt off bw setting mode.
+			int hi = (n >> 8) & 0x7F; // hi byte (not MSB)
+			int lo = n & 0xFF;        // lo byte
+			snprintf(bwname, sizeof(bwname), "%s/%s",
+				(md == 0 || md == 1) ? TS870S_SSB_SL.at(lo).c_str() :	// SSB lo
+				(md == 4) ? TS870S_AM_SL.at(lo).c_str() : "N/A",		//  AM lo
+				(md == 0 || md == 1) ? TS870S_SSB_SH.at(hi).c_str() :	// SSB hi
+				(md == 4) ? TS870S_AM_SH.at(hi).c_str() : "N/A" );		//  AM hi
 
-	if (n > 256) { // hi/lo cutt off bw setting mode.
-		int hi = (n >> 8) & 0x7F; // hi byte (not MSB)
-		int lo = n & 0xFF;        // lo byte
-		snprintf(bwname, sizeof(bwname), "%s/%s",
-			(md == 0 || md == 1) ? TS870S_SSB_SL[lo].c_str() :	// SSB lo
-			(md == 4) ? TS870S_AM_SL[lo].c_str() : "N/A",		//  AM lo
-			(md == 0 || md == 1) ? TS870S_SSB_SH[hi].c_str() :	// SSB hi
-			(md == 4) ? TS870S_AM_SH[hi].c_str() : "N/A" );		//  AM hi
-
-	} else { // plain vanilla single bandwidth mode.
-		snprintf(bwname, sizeof(bwname), "%s",
-			(md == 2 || md == 6) ? TS870S_CWwidths[n].c_str() :	//  CW or CW-R
-		    (md == 5 || md == 7) ? TS870S_FSKwidths[n].c_str():	// FSK or FSK-R
-			(md == 3 ) ? TS870S_FMwidths[n].c_str() : "N/A" );  //  FM
+		} else { // plain vanilla single bandwidth mode.
+			snprintf(bwname, sizeof(bwname), "%s",
+				(md == 2 || md == 6) ? TS870S_CWwidths.at(n).c_str() :	//  CW or CW-R
+				(md == 5 || md == 7) ? TS870S_FSKwidths.at(n).c_str():	// FSK or FSK-R
+				(md == 3 ) ? TS870S_FMwidths.at(n).c_str() : "N/A" );  //  FM
+		}
+		return bwname;
+	} catch (const std::exception& e) {
+		LOG_ERROR("%s", e.what());
 	}
-	return bwname;
+	return "ERR";
 }
 
 //----------------------------------------------------------------------
@@ -551,7 +554,7 @@ void RIG_TS870S::set_volume_control(int val) { // 0 .. 100
  * there, and blank the mic.
  * To do that, in the Config/Xcvr Select menu, use one of the Hardware PTT options.
  * Just so it has been said...  wbx
- * 
+ *
  * BUMMER - HKJ
  */
 
@@ -676,6 +679,7 @@ void RIG_TS870S::set_modeA(int val)
 	}
 
 	switch (val) {
+		default:
 		case 0: cmd = "MD1;"; break;
 		case 1: cmd = "MD2;"; break;
 		case 2: cmd = "MD3;"; break;
@@ -685,7 +689,7 @@ void RIG_TS870S::set_modeA(int val)
 		case 6: cmd = "MD7;"; break;
 		case 7: cmd = "MD9;"; break;
 	}
-	
+
 	sendCommand(cmd);
 	set_trace(2, "set_modeA ", cmd.c_str());
 	showresp(WARN, ASC, "set mode A", cmd, "");
@@ -797,6 +801,7 @@ int RIG_TS870S::set_widths(int val) // val is from the mode list index, as selec
 	int bw = 0;
 
 	switch (val) {
+		default:
 		case tsLSB:
 		case tsUSB: {  // SSB modes
 			bandwidths_ = TS870S_SSB_SH;
@@ -853,7 +858,7 @@ std::vector<std::string>& RIG_TS870S::bwtable(int m)
 	if (m == tsLSB || m == tsUSB || m == tsAM)
 // these modes have lo and hi settings. BUT MUST RETURN A VALID pointer
 // NOT EMPTY!
-		return TS870S_SSB_SH;  
+		return TS870S_SSB_SH;
 
 	else if (m == tsCW || m == tsCWR)
 		return TS870S_CWwidths;
@@ -928,16 +933,19 @@ void RIG_TS870S::set_bwA(int val)
 			if (lo > 9 || hi > 11)
 				break;
 			A.iBW = val;
+			try {
+				cmd = TS870S_CAT_ssb_SL.at(lo);
+				sendCommand(cmd);
+				set_trace(2, "set lower ", cmd.c_str());
+				showresp(WARN, ASC, "set lower", cmd, "");
 
-			cmd = TS870S_CAT_ssb_SL[lo];
-			sendCommand(cmd);
-			set_trace(2, "set lower ", cmd.c_str());
-			showresp(WARN, ASC, "set lower", cmd, "");
-
-			cmd = TS870S_CAT_ssb_SH[hi];
-			sendCommand(cmd);
-			set_trace(2, "set upper ", cmd.c_str());
-			showresp(WARN, ASC, "set upper", cmd, "");
+				cmd = TS870S_CAT_ssb_SH.at(hi);
+				sendCommand(cmd);
+				set_trace(2, "set upper ", cmd.c_str());
+				showresp(WARN, ASC, "set upper", cmd, "");
+			} catch (const std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -949,16 +957,19 @@ void RIG_TS870S::set_bwA(int val)
 			if (lo > 3 || hi > 5)
 				break;
 			A.iBW = val;
+			try {
+				cmd = TS870S_CAT_am_SL.at(lo);
+				sendCommand(cmd);
+				set_trace(2, "set lower ", cmd.c_str());
+				showresp(WARN, ASC, "set lower", cmd, "");
 
-			cmd = TS870S_CAT_am_SL[lo];
-			sendCommand(cmd);
-			set_trace(2, "set lower ", cmd.c_str());
-			showresp(WARN, ASC, "set lower", cmd, "");
-
-			cmd = TS870S_CAT_am_SH[hi];
-			sendCommand(cmd);
-			set_trace(2, "set upper ", cmd.c_str());
-			showresp(WARN, ASC, "set upper", cmd, "");
+				cmd = TS870S_CAT_am_SH.at(hi);
+				sendCommand(cmd);
+				set_trace(2, "set upper ", cmd.c_str());
+				showresp(WARN, ASC, "set upper", cmd, "");
+			} catch (const std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -967,11 +978,15 @@ void RIG_TS870S::set_bwA(int val)
 			if (val > 256) {
 				break;
 			}
-			A.iBW = val;
-			cmd = TS870S_CWbw[A.iBW];
-			sendCommand(cmd);
-			set_trace(2, "set CW bw ", cmd.c_str());
-			showresp(WARN, ASC, "set CW bw", cmd, "");
+			try {
+				A.iBW = val;
+				cmd = TS870S_CWbw[A.iBW];
+				sendCommand(cmd);
+				set_trace(2, "set CW bw ", cmd.c_str());
+				showresp(WARN, ASC, "set CW bw", cmd, "");
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -980,19 +995,27 @@ void RIG_TS870S::set_bwA(int val)
 			if (val > 256)
 				break;
 			A.iBW = val;
-			cmd = TS870S_FSKbw[A.iBW];
-			sendCommand(cmd);
-			set_trace(2, "set FSK bw ", cmd.c_str());
-			showresp(WARN, ASC, "set FSK bw", cmd, "");
+			try {
+				cmd = TS870S_FSKbw.at(A.iBW);
+				sendCommand(cmd);
+				set_trace(2, "set FSK bw ", cmd.c_str());
+				showresp(WARN, ASC, "set FSK bw", cmd, "");
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
 		case tsFM: {
 			A.iBW = val;
-			cmd = TS870S_FMbw[A.iBW];
-			sendCommand(cmd);
-			set_trace(2, "set FM bw ", cmd.c_str());
-			showresp(WARN, ASC, "set FM bw", cmd, "");
+			try {
+				cmd = TS870S_FMbw.at(A.iBW);
+				sendCommand(cmd);
+				set_trace(2, "set FM bw ", cmd.c_str());
+				showresp(WARN, ASC, "set FM bw", cmd, "");
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 	}
@@ -1011,17 +1034,19 @@ void RIG_TS870S::set_bwB(int val)
 			if (lo > 9 || hi > 11)
 				break;
 			B.iBW = val;
+			try {
+				cmd = TS870S_CAT_ssb_SL.at(lo);
+				sendCommand(cmd);
+				set_trace(2, "set lower ", cmd.c_str());
+				showresp(WARN, ASC, "set lower", cmd, "");
 
-			cmd = TS870S_CAT_ssb_SL[lo];
-			sendCommand(cmd);
-			set_trace(2, "set lower ", cmd.c_str());
-			showresp(WARN, ASC, "set lower", cmd, "");
-
-			cmd = TS870S_CAT_ssb_SH[hi];
-			sendCommand(cmd);
-			set_trace(2, "set upper ", cmd.c_str());
-			showresp(WARN, ASC, "set upper", cmd, "");
-
+				cmd = TS870S_CAT_ssb_SH.at(hi);
+				sendCommand(cmd);
+				set_trace(2, "set upper ", cmd.c_str());
+				showresp(WARN, ASC, "set upper", cmd, "");
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -1033,17 +1058,19 @@ void RIG_TS870S::set_bwB(int val)
 			if (lo > 3 || hi > 5)
 				break;
 			B.iBW = val;
+			try {
+				cmd = TS870S_CAT_am_SL.at(lo);
+				sendCommand(cmd);
+				set_trace(2, "set lower ", cmd.c_str());
+				showresp(WARN, ASC, "set lower", cmd, "");
 
-			cmd = TS870S_CAT_am_SL[lo];
-			sendCommand(cmd);
-			set_trace(2, "set lower ", cmd.c_str());
-			showresp(WARN, ASC, "set lower", cmd, "");
-
-			cmd = TS870S_CAT_am_SH[hi];
-			sendCommand(cmd);
-			set_trace(2, "set upper ", cmd.c_str());
-			showresp(WARN, ASC, "set upper", cmd, "");
-
+				cmd = TS870S_CAT_am_SH.at(hi);
+				sendCommand(cmd);
+				set_trace(2, "set upper ", cmd.c_str());
+				showresp(WARN, ASC, "set upper", cmd, "");
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -1052,10 +1079,14 @@ void RIG_TS870S::set_bwB(int val)
 			if (val > 256)
 				break;
 			B.iBW = val;
-			cmd = TS870S_CWbw[B.iBW];
-			sendCommand(cmd);
-			set_trace(2, "set CW bw ", cmd.c_str());
-			showresp(WARN, ASC, "set CW bw", cmd, "");
+			try {
+				cmd = TS870S_CWbw.at(B.iBW);
+				sendCommand(cmd);
+				set_trace(2, "set CW bw ", cmd.c_str());
+				showresp(WARN, ASC, "set CW bw", cmd, "");
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -1064,19 +1095,27 @@ void RIG_TS870S::set_bwB(int val)
 			if (val > 256)
 				break;
 			B.iBW = val;
-			cmd = TS870S_FSKbw[B.iBW];
-			sendCommand(cmd);
-			set_trace(2, "set FSK bw ", cmd.c_str());
-			showresp(WARN, ASC, "set FSK bw", cmd, "");
+			try {
+				cmd = TS870S_FSKbw.at(B.iBW);
+				sendCommand(cmd);
+				set_trace(2, "set FSK bw ", cmd.c_str());
+				showresp(WARN, ASC, "set FSK bw", cmd, "");
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
 		case tsFM: {
 			A.iBW = val;
-			cmd = TS870S_FMbw[A.iBW];
-			sendCommand(cmd);
-			set_trace(2, "set FM bw ", cmd.c_str());
-			showresp(WARN, ASC, "set FM bw", cmd, "");
+			try {
+				cmd = TS870S_FMbw.at(A.iBW);
+				sendCommand(cmd);
+				set_trace(2, "set FM bw ", cmd.c_str());
+				showresp(WARN, ASC, "set FM bw", cmd, "");
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 	}
@@ -1102,12 +1141,15 @@ int RIG_TS870S::get_bwA() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return A.iBW;
-
+			try {
 			for (i = 0; i < TS870S_FMbw.size(); i++)
-				if (replystr.find(TS870S_FMbw[i]) == p) {
+				if (replystr.find(TS870S_FMbw.at(i)) == p) {
 					A.iBW = i;
 					break; 	// Found returned data, in std::string array.
 				}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -1124,11 +1166,15 @@ int RIG_TS870S::get_bwA() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return A.iBW;
-			for (i = 0; i < TS870S_CWbw.size(); i++)
-				if (replystr.find(TS870S_CWbw[i]) == p) {
-					A.iBW = i;
-					break; 	// Found returned data, in std::string array.
-				}
+			try {
+				for (i = 0; i < TS870S_CWbw.size(); i++)
+					if (replystr.find(TS870S_CWbw.at(i)) == p) {
+						A.iBW = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -1145,12 +1191,15 @@ int RIG_TS870S::get_bwA() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return A.iBW;
-
-			for (i = 0; i < TS870S_FSKbw.size(); i++)
-				if (replystr.find(TS870S_FSKbw[i]) == p) {
-					A.iBW = i;
-					break; 	// Found returned data, in std::string array.
-				}
+			try {
+				for (i = 0; i < TS870S_FSKbw.size(); i++)
+					if (replystr.find(TS870S_FSKbw.at(i)) == p) {
+						A.iBW = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -1169,13 +1218,15 @@ int RIG_TS870S::get_bwA() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return A.iBW;
-
-			for (i = 0; i < TS870S_CAT_am_SL.size(); i++)
-				if (replystr.find(TS870S_CAT_am_SL[i]) == p) {
-					lo = i;
-					break; 	// Found returned data, in std::string array.
-				}
-
+			try {
+				for (i = 0; i < TS870S_CAT_am_SL.size(); i++)
+					if (replystr.find(TS870S_CAT_am_SL.at(i)) == p) {
+						lo = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			cmd = "IS;";
 			get_trace(1, "get_upper");
 			ret = wait_char(';', 8, 100, "get upper", ASC);
@@ -1186,13 +1237,15 @@ int RIG_TS870S::get_bwA() {
 			p = replystr.rfind("IS ");
 			if (p == std::string::npos)
 				return A.iBW;
-
-			for (i = 0; i < TS870S_CAT_am_SH.size(); i++)
-				if (replystr.find(TS870S_CAT_am_SH[i]) == p) {
-					hi = i;
-					break; 	// Found returned data, in std::string array.
-				}
-
+			try {
+				for (i = 0; i < TS870S_CAT_am_SH.size(); i++)
+					if (replystr.find(TS870S_CAT_am_SH.at(i)) == p) {
+						hi = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			A.iBW = ((hi << 8) | (lo & 0x7F)) | 0x8000;
 			break;
 		}
@@ -1212,13 +1265,15 @@ int RIG_TS870S::get_bwA() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return A.iBW;
-
-			for (i = 0; i < TS870S_CAT_ssb_SL.size(); i++)
-				if (replystr.find(TS870S_CAT_ssb_SL[i]) == p) {
-					lo = i;
-					break; 	// Found returned data, in std::string array.
-				}
-
+			try {
+				for (i = 0; i < TS870S_CAT_ssb_SL.size(); i++)
+					if (replystr.find(TS870S_CAT_ssb_SL.at(i)) == p) {
+						lo = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			cmd = "IS;";
 			get_trace(1, "get upper");
 			ret = wait_char(';', 8, 100, "get upper", ASC);
@@ -1230,13 +1285,15 @@ int RIG_TS870S::get_bwA() {
 
 			if (p == std::string::npos)
 				return A.iBW;
-
-			for (i = 0; i < TS870S_CAT_ssb_SH.size(); i++)
-				if (replystr.find(TS870S_CAT_ssb_SH[i]) == p) {
-					hi = i;
-					break; 	// Found returned data, in std::string array.
-				}
-
+			try {
+				for (i = 0; i < TS870S_CAT_ssb_SH.size(); i++)
+					if (replystr.find(TS870S_CAT_ssb_SH.at(i)) == p) {
+						hi = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			A.iBW = ((hi << 8) | (lo & 0x7F)) | 0x8000;
 
 			break;
@@ -1265,12 +1322,15 @@ int RIG_TS870S::get_bwB() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return B.iBW;
-
-			for (i = 0; i < TS870S_FMbw.size(); i++)
-				if (replystr.find(TS870S_FMbw[i]) == p) {
-					B.iBW = i;
-					break; 	// Found returned data, in std::string array.
-				}
+			try {
+				for (i = 0; i < TS870S_FMbw.size(); i++)
+					if (replystr.find(TS870S_FMbw.at(i)) == p) {
+						B.iBW = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -1287,11 +1347,15 @@ int RIG_TS870S::get_bwB() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return B.iBW;
-			for (i = 0; i < TS870S_CWbw.size(); i++)
-				if (replystr.find(TS870S_CWbw[i]) == p) {
-					B.iBW = i;
-					break; 	// Found returned data, in std::string array.
-				}
+			try {
+				for (i = 0; i < TS870S_CWbw.size(); i++)
+					if (replystr.find(TS870S_CWbw.at(i)) == p) {
+						B.iBW = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -1308,12 +1372,15 @@ int RIG_TS870S::get_bwB() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return B.iBW;
-
-			for (i = 0; i < TS870S_FSKbw.size(); i++)
-				if (replystr.find(TS870S_FSKbw[i]) == p) {
-					B.iBW = i;
-					break; 	// Found returned data, in std::string array.
-				}
+			try {
+				for (i = 0; i < TS870S_FSKbw.size(); i++)
+					if (replystr.find(TS870S_FSKbw.at(i)) == p) {
+						B.iBW = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			break;
 		}
 
@@ -1332,13 +1399,15 @@ int RIG_TS870S::get_bwB() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return B.iBW;
-
-			for (i = 0; i < TS870S_CAT_am_SL.size(); i++)
-				if (replystr.find(TS870S_CAT_am_SL[i]) == p) {
-					lo = i;
-					break; 	// Found returned data, in std::string array.
-				}
-
+			try {
+				for (i = 0; i < TS870S_CAT_am_SL.size(); i++)
+					if (replystr.find(TS870S_CAT_am_SL.at(i)) == p) {
+						lo = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			cmd = "IS;";
 			get_trace(1, "get_upper");
 			ret = wait_char(';', 8, 100, "get upper", ASC);
@@ -1349,13 +1418,15 @@ int RIG_TS870S::get_bwB() {
 			p = replystr.rfind("IS ");
 			if (p == std::string::npos)
 				return B.iBW;
-
-			for (i = 0; i < TS870S_CAT_am_SH.size(); i++)
-				if (replystr.find(TS870S_CAT_am_SH[i]) == p) {
-					hi = i;
-					break; 	// Found returned data, in std::string array.
-				}
-
+			try {
+				for (i = 0; i < TS870S_CAT_am_SH.size(); i++)
+					if (replystr.find(TS870S_CAT_am_SH.at(i)) == p) {
+						hi = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			B.iBW = ((hi << 8) | (lo & 0x7F)) | 0x8000;
 			break;
 		}
@@ -1375,13 +1446,15 @@ int RIG_TS870S::get_bwB() {
 			p = replystr.rfind("FW");
 			if (p == std::string::npos)
 				return B.iBW;
-
-			for (i = 0; i < TS870S_CAT_ssb_SL.size(); i++)
-				if (replystr.find(TS870S_CAT_ssb_SL[i]) == p) {
-					lo = i;
-					break; 	// Found returned data, in std::string array.
-				}
-
+			try {
+				for (i = 0; i < TS870S_CAT_ssb_SL.size(); i++)
+					if (replystr.find(TS870S_CAT_ssb_SL.at(i)) == p) {
+						lo = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			cmd = "IS;";
 			get_trace(1, "get upper");
 			ret = wait_char(';', 8, 100, "get upper", ASC);
@@ -1393,13 +1466,15 @@ int RIG_TS870S::get_bwB() {
 
 			if (p == std::string::npos)
 				return B.iBW;
-
-			for (i = 0; i < TS870S_CAT_ssb_SH.size(); i++)
-				if (replystr.find(TS870S_CAT_ssb_SH[i]) == p) {
-					hi = i;
-					break; 	// Found returned data, in std::string array.
-				}
-
+			try {
+				for (i = 0; i < TS870S_CAT_ssb_SH.size(); i++)
+					if (replystr.find(TS870S_CAT_ssb_SH.at(i)) == p) {
+						hi = i;
+						break; 	// Found returned data, in std::string array.
+					}
+			} catch (std::exception& e) {
+				LOG_ERROR("%s", e.what());
+			}
 			B.iBW = ((hi << 8) | (lo & 0x7F)) | 0x8000;
 
 			break;
@@ -1440,7 +1515,7 @@ int RIG_TS870S::get_mic_gain()
 		return val;
 
 	size_t p = replystr.rfind("MG");
-	if (p == std::string::npos) 
+	if (p == std::string::npos)
 		return val;
 
 	replystr[p + 5] = 0;
@@ -1593,9 +1668,9 @@ void RIG_TS870S::set_auto_notch(int v)
 		 // only for SSB modes.
 		cmd = v ? "NT1;" : "NT0;";
 	}
-	else 
+	else
 		cmd = "NT0;";
-	
+
 	sendCommand(cmd);
 	showresp(WARN, ASC, "set auto notch", cmd, "");
 	sett("auto notch");

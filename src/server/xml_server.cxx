@@ -1052,7 +1052,7 @@ public :
 			std::vector<std::string>& dsphi = selrig->hitable(mode);
 
 	// double table either lo/hi or center/width
-			if (selrig->has_dsp_controls) {
+			if (selrig->has_dsp_controls && btnDSP->visible()) {
 				int n = 1;
 				std::string control_label = selrig->SL_label;
 				control_label.append("|").append(selrig->SL_tooltip);
@@ -1069,9 +1069,8 @@ public :
 					if (!dsphi.at(i).empty())
 						bws[1][n++] = dsphi[i];
 				}
-			}
+			} else {
 	// single bandwidth table
-			else {
 				bws[0][0] = "Bandwidth";
 				int n = 1;
 				for (size_t i = 0; i < bwt.size(); i++) {
@@ -2692,11 +2691,21 @@ public:
 
 		XCVR_STATE nuvals;
 
-		std::vector<std::string>& widths = selrig->bandwidths_;
-		if (bw < 0 || bw >= (int) widths.size()) {
-			result = 0;
-			return;
+		if (bw > 256) {
+			int bwH = (bw / 256) - 128;
+			int bwL = (bw % 256);
+			if (bwL < 0 || bwL >= (int)selrig->dsp_SL.size() ||
+				bwH < 0 || bwH >= (int)selrig->dsp_SH.size()) {
+				result = 0;
+				return;
+			}
+		} else {
+			if (bw < 0 || bw >= (int)selrig->bandwidths_.size()) {
+				result = 0;
+				return;
+			}
 		}
+
 		guard_lock que_lock ( &mutex_srvc_reqs, "xml rig_set_bw" );
 		guard_lock serial_lock(&mutex_serial, "xml rig_get_bw");
 
@@ -2730,10 +2739,19 @@ public:
 		int bw = (int)params[0];
 		XCVR_STATE nuvals;
 
-		std::vector<std::string>& widths = selrig->bandwidths_;
-		if (bw < 0 || bw >= (int) widths.size()) {
-			result = 0;
-			return;
+		if (bw > 256) {
+			int bwH = (bw / 256) - 128;
+			int bwL = (bw % 256);
+			if (bwL < 0 || bwL >= (int)selrig->dsp_SL.size() ||
+				bwH < 0 || bwH >= (int)selrig->dsp_SH.size()) {
+				result = 0;
+				return;
+			}
+		} else {
+			if (bw < 0 || bw >= (int)selrig->bandwidths_.size()) {
+				result = 0;
+				return;
+			}
 		}
 
 		guard_lock que_lock ( &mutex_srvc_reqs, "xml rig_set_verify_bw" );
@@ -2772,11 +2790,21 @@ public:
 		int bw = (int)params[0];
 		XCVR_STATE nuvals;
 
-		std::vector<std::string>& widths = selrig->bandwidths_;
-		if (bw < 0 || bw >= (int) widths.size()) {
-			result = 0;
-			return;
+		if (bw > 256) {
+			int bwH = (bw / 256) - 128;
+			int bwL = (bw % 256);
+			if (bwL < 0 || bwL >= (int)selrig->dsp_SL.size() ||
+				bwH < 0 || bwH >= (int)selrig->dsp_SH.size()) {
+				result = 0;
+				return;
+			}
+		} else {
+			if (bw < 0 || bw >= (int)selrig->bandwidths_.size()) {
+				result = 0;
+				return;
+			}
 		}
+
 		guard_lock que_lock ( &mutex_srvc_reqs, "xml rig_set_BW" );
 		guard_lock serial_lock(&mutex_serial, "xml rig_get_BW");
 		if (selrig->inuse == onB) {
@@ -2810,11 +2838,21 @@ public:
 		int bw = (int)params[0];
 		XCVR_STATE nuvals;
 
-		std::vector<std::string>& widths = selrig->bandwidths_;
-		if (bw < 0 || bw >= (int) widths.size()) {
-			result = 0;
-			return;
+		if (bw > 256) {
+			int bwH = (bw / 256) - 128;
+			int bwL = (bw % 256);
+			if (bwL < 0 || bwL >= (int)selrig->dsp_SL.size() ||
+				bwH < 0 || bwH >= (int)selrig->dsp_SH.size()) {
+				result = 0;
+				return;
+			}
+		} else {
+			if (bw < 0 || bw >= (int)selrig->bandwidths_.size()) {
+				result = 0;
+				return;
+			}
 		}
+
 		guard_lock que_lock ( &mutex_srvc_reqs, "xml rig_set_BW" );
 		guard_lock serial_lock(&mutex_serial, "xml rig_get_BW");
 		int retbw;
