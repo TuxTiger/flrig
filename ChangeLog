@@ -1,6 +1,15 @@
-2023-05-15  dave-w1hkj  <w1hkj@bellsouth.net>
+2023-05-30  dave-w1hkj  <w1hkj@bellsouth.net>
 
-	2365f15e: Version 2.0.0   * Update release
+	d5a5e169: Version 2.0.01
+	a397e321: DSP-L/DSP-H bws
+	019f3e5e: K3, KX3, K4 controls
+	3d35f1e2: QDX has bandwidth
+	2697ed45: TS990 meters
+	115e86f8: xmlrpc get bandwidth
+	78fda2f2: rigbase vectors
+	beb36670: fltk.1.4 mods
+	c2e2d715: Missing FT987D
+	915d98c5: Version 2.0.0   * Update release
 	18c37870: xml command button
 	badde39a: button colors
 	ad188cff: string vectors
