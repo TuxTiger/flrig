@@ -48,6 +48,8 @@ public:
 
 	int  get_power_out(void);
 	int  get_smeter(void);
+   	int  get_swr();
+	int  get_alc();
 
 	void selectA();
 	void selectB();

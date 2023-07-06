@@ -80,6 +80,8 @@ RIG_FT857D::RIG_FT857D() {
 	has_ptt_control =
 	has_split =
 	has_split_AB =
+	has_swr_control =
+	has_alc_control =
 	has_smeter =
 	has_power_out =
 	has_mode_control = 
@@ -276,21 +278,59 @@ void RIG_FT857D::set_PTT_control(int val)
 	ptt_ = val;
 }
 
-// mod submitted by Rich, WA4SXZ, for power_out and smeter
+// mod submitted by TuxTiger, PE1PDS, for PWR, ALC and SWR
 
-int  RIG_FT857D::get_power_out(void)
+// power out is scaled by 10 to allow display on flrig power scales
+static int pmeter_map[] = {
+  0,   0,   5,  10,  20,  30,  40,  50,  70,  85,  100};
+//0    1     2    3    4    5    6    7   8   9   A
+
+static int swr_map[] = {
+   0,  4,  8, 13, 25, 37, 60, 70, 80, 90, 100, 100, 100, 100, 100, 100};
+// 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10,  11,  12,  13,  14,  15
+
+static int alc_map[] = {
+   0,  10,  20,  30,  40, 50, 60, 70,  80, 90, 100, 100, 100, 100, 100, 100};
+// 0,  1,   2,    3,   4,  5,  6,  7,  8,  9,  10,  11,  12,  13,  14,  15
+
+
+static int swr;
+static int alc;
+
+// uses undocumented command 0xBD
+// returns two bytes b0 b1
+// b0 PWR|ALC
+// b1 SWR|MOD
+
+int  RIG_FT857D::get_power_out()
 {
 	init_cmd();
-	cmd[4] = 0xF7;
-	int ret = waitN(1, 100, "get pout", HEX);
-	getthex("get pout");
-	if (ret == 1) {
-		int fwdpwr = replystr[0] & 0x0F;
-		fwdpwr = fwdpwr * 100 / 15;
-		return fwdpwr;
-	}
-	return 0;
+	cmd[4] = 0xBD;
+	int ret = waitN(2, 100, "get PWR/SWR/MOD/ALC", HEX);
+	getthex("get_power_out");
+
+	if (ret < 2) return 0;
+
+	int fwdpwr = (replystr[0] & 0xF0) >> 4;
+	swr = (replystr[1] & 0xF0) >> 4;
+	alc = (replystr[0] & 0x0F);
+
+	if (fwdpwr > 10) fwdpwr = 10;
+	if (fwdpwr < 0) fwdpwr = 0;
+	return pmeter_map[fwdpwr];
 }
+
+int  RIG_FT857D::get_swr()
+{
+	return swr_map[swr];
+}
+
+int  RIG_FT857D::get_alc()
+{
+	return alc_map[alc];
+}
+
+// mod submitted by Rich, WA4SXZ, for power_out and smeter
 
 int  RIG_FT857D::get_smeter(void)
 {
